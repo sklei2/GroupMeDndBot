@@ -1,0 +1,8 @@
+/help:
+  All the the commands I know and how to execute them! Also this is the command you just ran, why are you reading this?
+
+/roll [times]d[number_of_faces]
+  I can roll a die any number of times and give you the output of it. 
+  [times] => Number of times to roll the die.
+  [number_of_faces] => the max value on the die face.
+  EX: '/roll 1d20' means I will roll a 20 sided die, one time.

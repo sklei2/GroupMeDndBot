@@ -12,6 +12,7 @@ import org.http4s.EntityDecoder
 import cats.effect.kernel.Async
 import scala.util.Random
 import cats.instances.unit
+import scala.io.Source
 
 case class GroupMeRequestBody(
   group_id: String,
@@ -35,6 +36,11 @@ class GroupMeService[F[_]: Concurrent](config: GroupMeConfig, client: GroupMeCli
   val dsl = new Http4sDsl[F] {}
   import dsl._
 
+  private def handleHelp: F[Unit] = {
+    val helpText: Iterator[String] = Source.fromResource("help.txt").getLines()
+    client.sendTextGroupMeMessage(helpText.mkString("\n")) >> Concurrent[F].unit
+  }
+
   private def handleDieRoll(times: Int, dieUnit: Int): F[Unit] = {
     val results: Seq[Int] = (0 until times).map { _ =>
       Random.nextInt(dieUnit) + 1
@@ -52,6 +58,8 @@ class GroupMeService[F[_]: Concurrent](config: GroupMeConfig, client: GroupMeCli
     HttpRoutes.of[F] { case req @ POST -> Root =>
       req.decode[GroupMeRequestBody] { body =>
         body.text match {
+          case s"/help" =>
+            handleHelp >> Ok()
           case s"/roll ${times}d${unit}" =>
             handleDieRoll(times.toInt, unit.toInt) >> Ok()
         }
