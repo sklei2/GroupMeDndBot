@@ -8,6 +8,9 @@ publish / skip := true
 
 lazy val bot = project
   .enablePlugins(JavaAppPackaging)
+  .settings(
+    mainClass in Compile := Some("com.g5deathmarch.dndbot.Main")
+  )
   .settings(topLevelDirectory := None)
   .settings(fork := true)
   .settings(

@@ -1,1 +1,1 @@
-web: target/universal/stage/bin/bot -Dhttp.port=${PORT}
+web: bot/target/universal/stage/bin/dnd-bot -Dhttp.port=${PORT}
