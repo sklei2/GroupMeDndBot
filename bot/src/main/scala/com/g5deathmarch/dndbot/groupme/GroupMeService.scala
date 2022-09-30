@@ -10,6 +10,8 @@ import io.circe.Decoder
 import org.http4s.circe.jsonOf
 import org.http4s.EntityDecoder
 import cats.effect.kernel.Async
+import scala.util.Random
+import cats.instances.unit
 
 case class GroupMeRequestBody(
   group_id: String,
@@ -33,14 +35,25 @@ class GroupMeService[F[_]: Concurrent](config: GroupMeConfig, client: GroupMeCli
   val dsl = new Http4sDsl[F] {}
   import dsl._
 
-  private def handleHello(message: String): F[Unit] = client.sendTextGroupMeMessage(message) >> Concurrent[F].unit
+  private def handleDieRoll(times: Int, dieUnit: Int): F[Unit] = {
+    val results: Seq[Int] = (0 until times).map { _ =>
+      Random.nextInt(dieUnit) + 1
+    }
+    val output = results.fold(0)(_ + _)
+    client.sendTextGroupMeMessage(
+      s"""
+      Result of ${times}d${dieUnit}:
+      ${results.mkString(" + ")} = $output
+      """
+    ) >> Concurrent[F].unit
+  }
 
   def routes: HttpRoutes[F] = {
     HttpRoutes.of[F] { case req @ POST -> Root =>
       req.decode[GroupMeRequestBody] { body =>
         body.text match {
-          case s"/hello $rest" =>
-            handleHello(rest) >> Ok()
+          case s"/roll ${times}d${unit}" =>
+            handleDieRoll(times.toInt, unit.toInt) >> Ok()
         }
       }
     }
