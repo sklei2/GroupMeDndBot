@@ -1,0 +1,2 @@
+// Package projects into docker containers.
+addSbtPlugin("com.github.sbt" % "sbt-native-packager" % "1.9.11")

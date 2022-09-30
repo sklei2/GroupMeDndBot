@@ -4,6 +4,7 @@
 .metals/
 .vscode/
 target/
+metals.sbt
 project/project
 project/target
 *.class
