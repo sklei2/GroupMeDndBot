@@ -41,18 +41,40 @@ class GroupMeService[F[_]: Concurrent](config: GroupMeConfig, client: GroupMeCli
     client.sendTextGroupMeMessage(helpText.mkString("\n")) >> Concurrent[F].unit
   }
 
-  private def handleDieRoll(times: Int, dieUnit: Int): F[Unit] = {
-    val results: Seq[Int] = (0 until times).map { _ =>
-      Random.nextInt(dieUnit) + 1
-    }
-    val output = results.fold(0)(_ + _)
-    client.sendTextGroupMeMessage(
-      s"""
+  private def handleDieRoll(dieRolls: Seq[(Int, Int)]): F[Unit] = {
+    println(dieRolls)
+    val subMessageAndTotal: Seq[(String, Int)] = dieRolls
+      .map { case (times, dieUnit) =>
+        val results = (0 until times).map { _ => Random.nextInt(dieUnit) + 1 }.toSeq
+        val output = results.fold(0)(_ + _)
+        (
+          s"""
       Result of ${times}d${dieUnit}:
-      ${results.mkString(" + ")} = $output
+      ${results.mkString(" + ")}${if (times > 1) s"= $output" else ""}
+      """,
+          output
+        )
+      }
+
+    val message: String = {
+      val total = subMessageAndTotal.foldLeft(0) { case (count, messageAndTotal) => count + messageAndTotal._2 }
+      val subMessage = subMessageAndTotal.map(_._1).mkString("\n")
+      if (subMessageAndTotal.size > 1) {
+        s"""
+      $subMessage
+      Total: $total
       """
-    ) >> Concurrent[F].unit
+      } else {
+        subMessage
+      }
+
+    }
+
+    client.sendTextGroupMeMessage(message) >> Concurrent[F].unit
   }
+
+  // Regex to capture [number_of_rolls]d[number_of_sides]
+  val diceRollRegex = raw"(\d+)d(\d+)\s?\+?".r
 
   def routes: HttpRoutes[F] = {
     HttpRoutes.of[F] { case req @ POST -> Root =>
@@ -60,8 +82,10 @@ class GroupMeService[F[_]: Concurrent](config: GroupMeConfig, client: GroupMeCli
         body.text match {
           case s"/help" =>
             handleHelp >> Ok()
-          case s"/roll ${times}d${unit}" =>
-            handleDieRoll(times.toInt, unit.toInt) >> Ok()
+          case s"/roll ${rest}" if diceRollRegex.findFirstIn(rest).nonEmpty =>
+            val dieRolls =
+              diceRollRegex.findAllIn(rest).matchData.map { m => (m.subgroups(0).toInt, m.subgroups(1).toInt) }.toSeq
+            handleDieRoll(dieRolls) >> Ok()
         }
       }
     }
