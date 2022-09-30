@@ -9,5 +9,5 @@ case class GroupMeConfig(
 )
 
 object GroupMeConfig {
-  def load: GroupMeConfig = ConfigSource.default.at("bot.groupme").loadOrThrow[GroupMeConfig]
+  def load: GroupMeConfig = ConfigSource.default.at("dndbot.groupme").loadOrThrow[GroupMeConfig]
 }

@@ -10,6 +10,6 @@ case class ServerConfig(
 
 object ServerConfig {
 
-  def load: ServerConfig = ConfigSource.default.at("bot.server").loadOrThrow[ServerConfig]
+  def load: ServerConfig = ConfigSource.default.at("dndbot.server").loadOrThrow[ServerConfig]
 
 }
