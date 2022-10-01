@@ -41,18 +41,47 @@ class GroupMeService[F[_]: Concurrent](config: GroupMeConfig, client: GroupMeCli
     client.sendTextGroupMeMessage(helpText.mkString("\n")) >> Concurrent[F].unit
   }
 
-  private def handleDieRoll(times: Int, dieUnit: Int): F[Unit] = {
-    val results: Seq[Int] = (0 until times).map { _ =>
-      Random.nextInt(dieUnit) + 1
+  type Sides = Int
+  type RollCount = Int
+
+  private def handleDieRoll(dieRolls: Seq[(RollCount, Sides)]): F[Unit] = {
+    // If the text gives us multiple of the same die sides, let's just group those all together.
+    val groupedDieRolls: Seq[(RollCount, Sides)] = dieRolls
+      .groupBy(_._2)
+      .map { case (sides, allRollsForSide) => (allRollsForSide.map(_._1).fold(0)(_ + _), sides) }
+      .toSeq
+
+    val results: Seq[Seq[Int]] = groupedDieRolls
+      .map { case (rollCount, sides) =>
+        (0 until rollCount).map { _ => Random.nextInt(sides) + 1 }.toSeq
+      }
+
+    val message: String = {
+      val header =
+        groupedDieRolls.map { case (rollCount, sides) => s"${rollCount}d${sides}" }.mkString("Result of ", " + ", "")
+      val body = {
+        val total = results.flatten.fold(0)(_ + _)
+        // if we're only rolling a single die, just show the result of that one die without anything else.
+        if (results.flatten.size == 1)
+          s"${total}"
+        else {
+          val rolls =
+            results
+              .map { result => result.mkString("(", " + ", ")") }
+              .mkString(" + ")
+
+          s"${rolls} = ${total}"
+        }
+      }
+
+      s"$header\n$body"
     }
-    val output = results.fold(0)(_ + _)
-    client.sendTextGroupMeMessage(
-      s"""
-      Result of ${times}d${dieUnit}:
-      ${results.mkString(" + ")} = $output
-      """
-    ) >> Concurrent[F].unit
+
+    client.sendTextGroupMeMessage(message) >> Concurrent[F].unit
   }
+
+  // Regex to capture [number_of_rolls]d[number_of_sides]
+  val diceRollRegex = raw"(\d+)d(\d+)\s?\+?".r
 
   def routes: HttpRoutes[F] = {
     HttpRoutes.of[F] { case req @ POST -> Root =>
@@ -60,8 +89,10 @@ class GroupMeService[F[_]: Concurrent](config: GroupMeConfig, client: GroupMeCli
         body.text match {
           case s"/help" =>
             handleHelp >> Ok()
-          case s"/roll ${times}d${unit}" =>
-            handleDieRoll(times.toInt, unit.toInt) >> Ok()
+          case s"/roll ${rest}" if diceRollRegex.findFirstIn(rest).nonEmpty =>
+            val dieRolls =
+              diceRollRegex.findAllIn(rest).matchData.map { m => (m.subgroups(0).toInt, m.subgroups(1).toInt) }.toSeq
+            handleDieRoll(dieRolls) >> Ok()
         }
       }
     }
