@@ -26,6 +26,7 @@ lazy val bot = project
       Dependencies.http4s.circe,
       Dependencies.circeGeneric,
       Dependencies.pureConfig,
-      Dependencies.logback
+      Dependencies.logback,
+      Dependencies.scalaLogging
     )
   )

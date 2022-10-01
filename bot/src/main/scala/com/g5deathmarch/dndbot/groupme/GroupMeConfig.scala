@@ -5,7 +5,8 @@ import pureconfig.generic.auto._
 
 case class GroupMeConfig(
   postUrl: String,
-  botId: String
+  botId: String,
+  useLocal: Boolean
 )
 
 object GroupMeConfig {

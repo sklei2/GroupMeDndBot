@@ -1,6 +1,6 @@
 package com.g5deathmarch.dndbot
 
-import com.g5deathmarch.dndbot.groupme.{GroupMeConfig, GroupMeClient, GroupMeService}
+import com.g5deathmarch.dndbot.groupme.{GroupMeConfig, GroupMeClientImpl, GroupMeService, LocalGroupMeClient}
 
 import cats.effect._
 import cats.syntax.all._
@@ -12,15 +12,23 @@ import org.http4s.ember.server.EmberServerBuilder
 import org.http4s.implicits._
 import org.http4s.server.middleware.Logger
 import org.http4s._
+import cats.syntax.group
+import com.typesafe.scalalogging.StrictLogging
 
-object Server {
+object Server extends StrictLogging {
 
   def stream[F[_]: Async]: Stream[F, Nothing] = {
     for {
       client <- Stream.resource(EmberClientBuilder.default[F].build)
       serverConfig: ServerConfig = ServerConfig.load
       groupMeConfig: GroupMeConfig = GroupMeConfig.load
-      groupMeClient = new GroupMeClient[F](groupMeConfig, client)
+      groupMeClient = {
+        if (groupMeConfig.useLocal) {
+          logger.debug(s"$groupMeConfig")
+          new LocalGroupMeClient[F]
+        } else
+          new GroupMeClientImpl[F](groupMeConfig, client)
+      }
       groupMeService = new GroupMeService[F](groupMeConfig, groupMeClient)
       httpApp = Logger.httpApp(true, true)(groupMeService.routes.orNotFound)
 
