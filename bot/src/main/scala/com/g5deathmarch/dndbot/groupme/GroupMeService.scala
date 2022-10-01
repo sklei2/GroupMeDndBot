@@ -41,33 +41,40 @@ class GroupMeService[F[_]: Concurrent](config: GroupMeConfig, client: GroupMeCli
     client.sendTextGroupMeMessage(helpText.mkString("\n")) >> Concurrent[F].unit
   }
 
-  private def handleDieRoll(dieRolls: Seq[(Int, Int)]): F[Unit] = {
-    println(dieRolls)
-    val subMessageAndTotal: Seq[(String, Int)] = dieRolls
-      .map { case (times, dieUnit) =>
-        val results = (0 until times).map { _ => Random.nextInt(dieUnit) + 1 }.toSeq
-        val output = results.fold(0)(_ + _)
-        (
-          s"""
-      Result of ${times}d${dieUnit}:
-      ${results.mkString(" + ")}${if (times > 1) s"= $output" else ""}
-      """,
-          output
-        )
+  type Sides = Int
+  type RollCount = Int
+
+  private def handleDieRoll(dieRolls: Seq[(RollCount, Sides)]): F[Unit] = {
+    // If the text gives us multiple of the same die sides, let's just group those all together.
+    val groupedDieRolls: Seq[(RollCount, Sides)] = dieRolls
+      .groupBy(_._2)
+      .map { case (sides, allRollsForSide) => (allRollsForSide.map(_._1).fold(0)(_ + _), sides) }
+      .toSeq
+
+    val results: Seq[Seq[Int]] = groupedDieRolls
+      .map { case (rollCount, sides) =>
+        (0 until rollCount).map { _ => Random.nextInt(sides) + 1 }.toSeq
       }
 
     val message: String = {
-      val total = subMessageAndTotal.foldLeft(0) { case (count, messageAndTotal) => count + messageAndTotal._2 }
-      val subMessage = subMessageAndTotal.map(_._1).mkString("\n")
-      if (subMessageAndTotal.size > 1) {
-        s"""
-      $subMessage
-      Total: $total
-      """
-      } else {
-        subMessage
+      val header =
+        groupedDieRolls.map { case (rollCount, sides) => s"${rollCount}d${sides}" }.mkString("Result of ", " + ", "")
+      val body = {
+        val total = results.flatten.fold(0)(_ + _)
+        // if we're only rolling a single die, just show the result of that one die without anything else.
+        if (results.flatten.size == 1)
+          s"${total}"
+        else {
+          val rolls =
+            results
+              .map { result => result.mkString("(", " + ", ")") }
+              .mkString(" + ")
+
+          s"${rolls} = ${total}"
+        }
       }
 
+      s"$header\n$body"
     }
 
     client.sendTextGroupMeMessage(message) >> Concurrent[F].unit
