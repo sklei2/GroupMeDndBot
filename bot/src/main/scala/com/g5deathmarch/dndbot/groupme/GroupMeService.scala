@@ -87,7 +87,16 @@ class GroupMeService[F[_]: Concurrent](
   }
 
   private def handleIdea(idea: String, user: String): F[Unit] = {
-    githubClient.createIssue(idea, user) >> Concurrent[F].unit
+    githubClient.createIssue(idea, user).flatMap { createdIssue =>
+      val message = createdIssue.url match {
+        case Some(url) =>
+          s"I've let my creators know about your idea! Check it out here: ${url}"
+        case None =>
+          "I've tried to let them know about your idea, but failed :("
+      }
+      groupmeClient.sendTextGroupMeMessage(message)
+
+    } >> Concurrent[F].unit
   }
 
   // Regex to capture [number_of_rolls]d[number_of_sides]

@@ -11,12 +11,13 @@ import org.http4s.headers.Authorization
 
 case class GithubIssue(
   title: String,
-  body: String
+  body: String,
+  url: Option[String]
 )
 
 trait GithubClient[F[_]] {
 
-  def createIssue(issueTitle: String, user: String): F[Status]
+  def createIssue(issueTitle: String, user: String): F[GithubIssue]
 
 }
 
@@ -28,18 +29,19 @@ class GithubClientImpl[F[_]: Concurrent](
 
   private val apiRepoUrl: String = s"https://api.github.com/repos/${config.username}/${config.repoName}"
 
-  override def createIssue(issueTitle: String, user: String): F[Status] = {
+  override def createIssue(issueTitle: String, user: String): F[GithubIssue] = {
     val uri = Uri.unsafeFromString(s"${apiRepoUrl}/issues")
     val req = Request[F](Method.POST, uri)
       .withHeaders(Authorization(BasicCredentials(config.username, config.accessToken)))
       .withEntity[GithubIssue](
         GithubIssue(
           issueTitle,
-          s"Recommended by ${user}"
+          s"Recommended by ${user}",
+          None
         )
       )
 
-    client.status(req)
+    client.expect[GithubIssue](req)
   }
 
 }
