@@ -1,6 +1,12 @@
 package com.g5deathmarch.dndbot
 
-import com.g5deathmarch.dndbot.groupme.{GroupMeConfig, GroupMeClientImpl, GroupMeService, LocalGroupMeClient}
+import com.g5deathmarch.dndbot.groupme.{
+  GroupMeConfig,
+  GroupMeClientImpl,
+  GroupMeService,
+  LocalGroupMeClient,
+  GroupMeClient
+}
 
 import cats.effect._
 import cats.syntax.all._
@@ -14,6 +20,8 @@ import org.http4s.server.middleware.Logger
 import org.http4s._
 import cats.syntax.group
 import com.typesafe.scalalogging.StrictLogging
+import com.g5deathmarch.dndbot.github.{GithubConfig, GithubClient, GithubClientImpl}
+import com.g5deathmarch.dndbot.groupme.GroupMeClient
 
 object Server extends StrictLogging {
 
@@ -22,6 +30,7 @@ object Server extends StrictLogging {
       client <- Stream.resource(EmberClientBuilder.default[F].build)
       serverConfig: ServerConfig = ServerConfig.load
       groupMeConfig: GroupMeConfig = GroupMeConfig.load
+      githubConfig: GithubConfig = GithubConfig.load
       groupMeClient = {
         if (groupMeConfig.useLocal) {
           logger.debug(s"$groupMeConfig")
@@ -29,7 +38,10 @@ object Server extends StrictLogging {
         } else
           new GroupMeClientImpl[F](groupMeConfig, client)
       }
-      groupMeService = new GroupMeService[F](groupMeConfig, groupMeClient)
+      githubClient = {
+        new GithubClientImpl[F](githubConfig, client)
+      }
+      groupMeService = new GroupMeService[F](groupMeConfig, groupMeClient, githubClient)
       httpApp = Logger.httpApp(true, true)(groupMeService.routes.orNotFound)
 
       exitCode <- Stream.resource(

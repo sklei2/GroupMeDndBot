@@ -5,35 +5,14 @@ import cats.implicits._
 import org.http4s._
 import org.http4s.client.Client
 import org.http4s.client.dsl.Http4sClientDsl
-import org.typelevel.ci.CIString
-import io.circe.generic.semiauto.{deriveEncoder, deriveDecoder}
+import org.http4s.circe.CirceEntityCodec._
 import io.circe.generic.auto._
-import io.circe.{Encoder, Decoder}
-import org.http4s.circe.{jsonOf, jsonEncoderOf}
-import cats.effect.kernel.Async
 import com.typesafe.scalalogging.StrictLogging
 
 case class GroupMeTextMessage(
   bot_id: String,
   text: String
 )
-
-object GroupMeTextMessage {
-  implicit val groupMeTextDecoder: Decoder[GroupMeTextMessage] = deriveDecoder[GroupMeTextMessage]
-
-  implicit def groupMeTextEntityDecoder[F[_]: Concurrent]: EntityDecoder[F, GroupMeTextMessage] =
-    jsonOf[F, GroupMeTextMessage]
-
-  implicit val groupMeTextEncoder: Encoder[GroupMeTextMessage] = deriveEncoder[GroupMeTextMessage]
-
-  implicit def groupMeTextEntityEncoder[F[_]]: EntityEncoder[F, GroupMeTextMessage] =
-    jsonEncoderOf[F, GroupMeTextMessage]
-}
-
-object BasicJson {
-  implicit val unitDecoder: Decoder[Unit] = deriveDecoder[Unit]
-  implicit def unitEntityDecoder[F[_]: Concurrent]: EntityDecoder[F, Unit] = jsonOf[F, Unit]
-}
 
 trait GroupMeClient[F[_]] {
 
