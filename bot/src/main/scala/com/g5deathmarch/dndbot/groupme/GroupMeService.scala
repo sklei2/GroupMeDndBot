@@ -13,6 +13,8 @@ import cats.effect.kernel.Async
 import scala.util.Random
 import cats.instances.unit
 import scala.io.Source
+import com.g5deathmarch.dndbot.github.GithubClient
+import com.g5deathmarch.dndbot.github.GithubIssue
 
 case class GroupMeRequestBody(
   group_id: String,
@@ -31,14 +33,18 @@ object GroupMeRequestBody {
 
 }
 
-class GroupMeService[F[_]: Concurrent](config: GroupMeConfig, client: GroupMeClient[F]) {
+class GroupMeService[F[_]: Concurrent](
+  config: GroupMeConfig,
+  groupmeClient: GroupMeClient[F],
+  githubClient: GithubClient[F]
+) {
 
   val dsl = new Http4sDsl[F] {}
   import dsl._
 
   private def handleHelp: F[Unit] = {
     val helpText: Iterator[String] = Source.fromResource("help.txt").getLines()
-    client.sendTextGroupMeMessage(helpText.mkString("\n")) >> Concurrent[F].unit
+    groupmeClient.sendTextGroupMeMessage(helpText.mkString("\n")) >> Concurrent[F].unit
   }
 
   type Sides = Int
@@ -77,7 +83,11 @@ class GroupMeService[F[_]: Concurrent](config: GroupMeConfig, client: GroupMeCli
       s"$header\n$body"
     }
 
-    client.sendTextGroupMeMessage(message) >> Concurrent[F].unit
+    groupmeClient.sendTextGroupMeMessage(message) >> Concurrent[F].unit
+  }
+
+  private def handleIdea(idea: String, user: String): F[Unit] = {
+    githubClient.createIssue(idea, user) >> Concurrent[F].unit
   }
 
   // Regex to capture [number_of_rolls]d[number_of_sides]
@@ -93,6 +103,8 @@ class GroupMeService[F[_]: Concurrent](config: GroupMeConfig, client: GroupMeCli
             val dieRolls =
               diceRollRegex.findAllIn(rest).matchData.map { m => (m.subgroups(0).toInt, m.subgroups(1).toInt) }.toSeq
             handleDieRoll(dieRolls) >> Ok()
+          case s"/idea ${idea}" =>
+            handleIdea(idea, body.name) >> Ok()
         }
       }
     }
