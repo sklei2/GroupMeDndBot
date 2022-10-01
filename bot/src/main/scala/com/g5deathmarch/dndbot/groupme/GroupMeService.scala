@@ -105,16 +105,22 @@ class GroupMeService[F[_]: Concurrent](
   def routes: HttpRoutes[F] = {
     HttpRoutes.of[F] { case req @ POST -> Root =>
       req.decode[GroupMeRequestBody] { body =>
-        body.text match {
-          case s"/help" =>
-            handleHelp >> Ok()
-          case s"/roll ${rest}" if diceRollRegex.findFirstIn(rest).nonEmpty =>
-            val dieRolls =
-              diceRollRegex.findAllIn(rest).matchData.map { m => (m.subgroups(0).toInt, m.subgroups(1).toInt) }.toSeq
-            handleDieRoll(dieRolls) >> Ok()
-          case s"/idea ${idea}" =>
-            handleIdea(idea, body.name) >> Ok()
+        // if started with a `/` let's listen in. If not we don't care
+        if (body.text.startsWith("/")) {
+          body.text match {
+            case s"/help" =>
+              handleHelp
+            case s"/roll ${rest}" if diceRollRegex.findFirstIn(rest).nonEmpty =>
+              val dieRolls =
+                diceRollRegex.findAllIn(rest).matchData.map { m => (m.subgroups(0).toInt, m.subgroups(1).toInt) }.toSeq
+              handleDieRoll(dieRolls)
+            case s"/idea ${idea}" =>
+              handleIdea(idea, body.name)
+            case _ =>
+              groupmeClient.sendTextGroupMeMessage("I'm sorry.I'm not sure what you wanted me to do :(")
+          }
         }
+        Ok()
       }
     }
   }
