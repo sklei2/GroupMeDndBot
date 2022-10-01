@@ -7,3 +7,8 @@
   [number_of_faces] => the max value on the die face.
   EX: '/roll 1d20' means I will roll one 20 sided die and give you the value.
   EX: '/roll 1d6 + 2d4' means I will roll one 6 side + two 4 sided dice, and add them together.
+
+/idea [Issue Title]
+  You ever want me to do something that I can't? Or want me to do something better?
+  Well let my creator know by telling them about your needs!
+  Ex '/idea Randomly generate characters names based on race.'
