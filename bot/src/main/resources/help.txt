@@ -1,5 +1,5 @@
-/help:
-  All the the commands I know and how to execute them! Also this is the command you just ran, why are you reading this?
+/help
+  All the commands I know and how to execute them! This is the command you just ran, why are you reading this?
 
 /roll [times]d[number_of_faces] [+ [times]d[number_of_faces]]
   I can roll a die any number of times and give you the output of it. I can even handle multiple die types!

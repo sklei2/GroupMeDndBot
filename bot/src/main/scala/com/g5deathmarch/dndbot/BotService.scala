@@ -21,7 +21,8 @@ case class GroupMeRequestBody(
   name: String,
   sender_id: String,
   user_id: String,
-  text: String
+  text: String,
+  sender_type: String
 )
 
 object GroupMeRequestBody {
@@ -50,7 +51,7 @@ class BotService[F[_]: Concurrent](
     HttpRoutes.of[F] { case req @ POST -> Root =>
       req.decode[GroupMeRequestBody] { body =>
         // if started with a `/` let's listen in. If not we don't care
-        if (body.text.toLowerCase.startsWith("/")) {
+        if (body.sender_type != "bot" && body.text.toLowerCase.startsWith("/")) {
           logger.debug(s"Attempting to handle command=${body.text}")
           val action = body.text match {
             case s"/help" =>
@@ -66,7 +67,7 @@ class BotService[F[_]: Concurrent](
               handleIdea(title, body.name)
             case _ =>
               logger.error(s"Unable to handle command: ${body.text.toLowerCase}")
-              groupmeClient.sendTextGroupMeMessage("I'm sorry.I'm not sure what you wanted me to do :(")
+              groupmeClient.sendTextGroupMeMessage("I'm sorry. I'm not sure what you wanted me to do :(")
           }
           action >> Ok()
         } else {
