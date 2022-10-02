@@ -1,23 +1,28 @@
 package com.g5deathmarch.dndbot.github
 
 import cats.effect.Concurrent
-import cats.implicits._
+import com.typesafe.scalalogging.StrictLogging
+import io.circe.generic.auto._
 import org.http4s._
 import org.http4s.circe.CirceEntityCodec._
 import org.http4s.client.Client
 import org.http4s.client.dsl.Http4sClientDsl
-import io.circe.generic.auto._
 import org.http4s.headers.Authorization
 
-case class GithubIssue(
+case class GithubIssueRequest(
+  title: String,
+  body: String
+)
+
+case class GithubIssueResponse(
   title: String,
   body: String,
-  url: Option[String]
+  html_url: String
 )
 
 trait GithubClient[F[_]] {
 
-  def createIssue(issueTitle: String, user: String): F[GithubIssue]
+  def createIssue(issueTitle: String, user: String): F[GithubIssueResponse]
 
 }
 
@@ -29,19 +34,25 @@ class GithubClientImpl[F[_]: Concurrent](
 
   private val apiRepoUrl: String = s"https://api.github.com/repos/${config.username}/${config.repoName}"
 
-  override def createIssue(issueTitle: String, user: String): F[GithubIssue] = {
+  override def createIssue(issueTitle: String, user: String): F[GithubIssueResponse] = {
     val uri = Uri.unsafeFromString(s"${apiRepoUrl}/issues")
     val req = Request[F](Method.POST, uri)
       .withHeaders(Authorization(BasicCredentials(config.username, config.accessToken)))
-      .withEntity[GithubIssue](
-        GithubIssue(
+      .withEntity[GithubIssueRequest](
+        GithubIssueRequest(
           issueTitle,
-          s"Recommended by ${user}",
-          None
+          s"Recommended by $user"
         )
       )
 
-    client.expect[GithubIssue](req)
+    client.expect[GithubIssueResponse](req)
   }
 
+}
+
+class LocalGithubClient[F[_]: Concurrent] extends GithubClient[F] with StrictLogging {
+  override def createIssue(issueTitle: String, user: String): F[GithubIssueResponse] = {
+    logger.debug(s"Creating an issue! title=$issueTitle user=$user")
+    Concurrent[F].pure(GithubIssueResponse(issueTitle, s"Recommended by $user", "Some github Url!"))
+  }
 }
