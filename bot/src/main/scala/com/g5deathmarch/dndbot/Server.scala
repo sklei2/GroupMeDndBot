@@ -2,7 +2,7 @@ package com.g5deathmarch.dndbot
 
 import cats.effect._
 import com.comcast.ip4s._
-import com.g5deathmarch.dndbot.github.{GithubClientImpl, GithubConfig}
+import com.g5deathmarch.dndbot.github.{GithubClientImpl, GithubConfig, LocalGithubClient}
 import com.g5deathmarch.dndbot.groupme.{GroupMeClientImpl, GroupMeConfig, LocalGroupMeClient}
 import com.typesafe.scalalogging.StrictLogging
 import fs2.Stream
@@ -26,7 +26,11 @@ object Server extends StrictLogging {
           new GroupMeClientImpl[F](groupMeConfig, client)
       }
       githubClient = {
-        new GithubClientImpl[F](githubConfig, client)
+        if (serverConfig.useLocal) {
+          new LocalGithubClient[F]
+        } else {
+          new GithubClientImpl[F](githubConfig, client)
+        }
       }
       service = new BotService[F](groupMeConfig, groupMeClient, githubClient)
       logHeaders = true

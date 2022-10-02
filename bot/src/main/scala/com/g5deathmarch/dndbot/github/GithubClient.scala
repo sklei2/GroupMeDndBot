@@ -1,6 +1,7 @@
 package com.g5deathmarch.dndbot.github
 
 import cats.effect.Concurrent
+import com.typesafe.scalalogging.StrictLogging
 import io.circe.generic.auto._
 import org.http4s._
 import org.http4s.circe.CirceEntityCodec._
@@ -47,4 +48,11 @@ class GithubClientImpl[F[_]: Concurrent](
     client.expect[GithubIssueResponse](req)
   }
 
+}
+
+class LocalGithubClient[F[_]: Concurrent] extends GithubClient[F] with StrictLogging {
+  override def createIssue(issueTitle: String, user: String): F[GithubIssueResponse] = {
+    logger.debug(s"Creating an issue! title=$issueTitle user=$user")
+    Concurrent[F].pure(GithubIssueResponse(issueTitle, s"Recommended by $user", "Some github Url!"))
+  }
 }
