@@ -1,26 +1,15 @@
 package com.g5deathmarch.dndbot
 
-import com.g5deathmarch.dndbot.groupme.{
-  GroupMeConfig,
-  GroupMeClientImpl,
-  LocalGroupMeClient,
-  GroupMeClient
-}
-
 import cats.effect._
-import cats.syntax.all._
-import cats.implicits._
 import com.comcast.ip4s._
+import com.g5deathmarch.dndbot.github.{GithubClientImpl, GithubConfig}
+import com.g5deathmarch.dndbot.groupme.{GroupMeClientImpl, GroupMeConfig, LocalGroupMeClient}
+import com.typesafe.scalalogging.StrictLogging
 import fs2.Stream
 import org.http4s.ember.client.EmberClientBuilder
 import org.http4s.ember.server.EmberServerBuilder
 import org.http4s.implicits._
 import org.http4s.server.middleware.Logger
-import org.http4s._
-import cats.syntax.group
-import com.typesafe.scalalogging.StrictLogging
-import com.g5deathmarch.dndbot.github.{GithubConfig, GithubClient, GithubClientImpl}
-import com.g5deathmarch.dndbot.groupme.GroupMeClient
 
 object Server extends StrictLogging {
 
