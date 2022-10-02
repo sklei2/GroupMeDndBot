@@ -8,15 +8,20 @@ import org.http4s.client.Client
 import org.http4s.client.dsl.Http4sClientDsl
 import org.http4s.headers.Authorization
 
-case class GithubIssue(
+case class GithubIssueRequest(
+  title: String,
+  body: String
+)
+
+case class GithubIssueResponse(
   title: String,
   body: String,
-  html_url: Option[String]
+  html_url: String
 )
 
 trait GithubClient[F[_]] {
 
-  def createIssue(issueTitle: String, user: String): F[GithubIssue]
+  def createIssue(issueTitle: String, user: String): F[GithubIssueResponse]
 
 }
 
@@ -28,19 +33,18 @@ class GithubClientImpl[F[_]: Concurrent](
 
   private val apiRepoUrl: String = s"https://api.github.com/repos/${config.username}/${config.repoName}"
 
-  override def createIssue(issueTitle: String, user: String): F[GithubIssue] = {
+  override def createIssue(issueTitle: String, user: String): F[GithubIssueResponse] = {
     val uri = Uri.unsafeFromString(s"${apiRepoUrl}/issues")
     val req = Request[F](Method.POST, uri)
       .withHeaders(Authorization(BasicCredentials(config.username, config.accessToken)))
-      .withEntity[GithubIssue](
-        GithubIssue(
+      .withEntity[GithubIssueRequest](
+        GithubIssueRequest(
           issueTitle,
-          s"Recommended by $user",
-          None
+          s"Recommended by $user"
         )
       )
 
-    client.expect[GithubIssue](req)
+    client.expect[GithubIssueResponse](req)
   }
 
 }

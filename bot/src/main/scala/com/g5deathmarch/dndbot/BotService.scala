@@ -121,14 +121,8 @@ class BotService[F[_]: Concurrent](
 
   private def handleIdea(idea: String, user: String): F[Unit] = {
     githubClient.createIssue(idea, user).flatMap { createdIssue =>
-      val message = createdIssue.html_url match {
-        case Some(url) =>
-          s"I've let my creators know about your idea! Check it out here: $url"
-        case None =>
-          "I've tried to let them know about your idea, but failed :("
-      }
+      val message = s"I've let my creators know about your idea! Check it out here: ${createdIssue.html_url}"
       groupmeClient.sendTextGroupMeMessage(message)
-
     } >> Concurrent[F].unit
   }
 }
