@@ -2,19 +2,16 @@ package com.g5deathmarch.dndbot.groupme
 
 import cats.effect.kernel.Concurrent
 import cats.implicits._
-import org.http4s.HttpRoutes
-import org.http4s.dsl.Http4sDsl
-import io.circe.Decoder.Result
-import io.circe.generic.semiauto.deriveDecoder
-import io.circe.Decoder
-import org.http4s.circe.jsonOf
-import org.http4s.EntityDecoder
-import cats.effect.kernel.Async
-import scala.util.Random
-import cats.instances.unit
-import scala.io.Source
 import com.g5deathmarch.dndbot.github.GithubClient
-import com.g5deathmarch.dndbot.github.GithubIssue
+import com.typesafe.scalalogging.StrictLogging
+import io.circe.Decoder
+import io.circe.generic.semiauto.deriveDecoder
+import org.http4s.{EntityDecoder, HttpRoutes}
+import org.http4s.circe.jsonOf
+import org.http4s.dsl.Http4sDsl
+
+import scala.io.Source
+import scala.util.Random
 
 case class GroupMeRequestBody(
   group_id: String,
@@ -37,18 +34,52 @@ class GroupMeService[F[_]: Concurrent](
   config: GroupMeConfig,
   groupmeClient: GroupMeClient[F],
   githubClient: GithubClient[F]
-) {
+) extends StrictLogging {
 
   val dsl = new Http4sDsl[F] {}
   import dsl._
+  // Type alias to make it easier to understand.
+  type Sides = Int
+  type RollCount = Int
+  // Regex to capture [number_of_rolls]d[number_of_sides]
+  val diceRollRegex = raw"(\d+)d(\d+)\s?\+?".r
+
+  def routes: HttpRoutes[F] = {
+    HttpRoutes.of[F] { case req @ POST -> Root =>
+      req.decode[GroupMeRequestBody] { body =>
+        // if started with a `/` let's listen in. If not we don't care
+        if (body.text.toLowerCase.startsWith("/")) {
+          logger.debug(s"Attempting to handle command=${body.text}")
+          val action = body.text match {
+            case s"/help" =>
+              logger.debug("Handling '/help' command")
+              handleHelp
+            case s"/roll ${rest}" if diceRollRegex.findFirstIn(rest).nonEmpty =>
+              logger.debug(s"Handling '/roll'. args=$rest")
+              val dieRolls =
+                diceRollRegex.findAllIn(rest).matchData.map { m => (m.subgroups(0).toInt, m.subgroups(1).toInt) }.toSeq
+              handleDieRoll(dieRolls)
+            case s"/idea ${title}" =>
+              logger.debug(s"Handling '/idea'. title=$title user=${body.name}")
+              handleIdea(title, body.name)
+            case _ =>
+              logger.error(s"Unable to handle command: ${body.text.toLowerCase}")
+              groupmeClient.sendTextGroupMeMessage("I'm sorry.I'm not sure what you wanted me to do :(")
+          }
+          action >> Ok()
+        } else {
+          // if we don't start with the activation character, don't do anything.
+          // Just OK it.
+          Ok()
+        }
+      }
+    }
+  }
 
   private def handleHelp: F[Unit] = {
     val helpText: Iterator[String] = Source.fromResource("help.txt").getLines()
     groupmeClient.sendTextGroupMeMessage(helpText.mkString("\n")) >> Concurrent[F].unit
   }
-
-  type Sides = Int
-  type RollCount = Int
 
   private def handleDieRoll(dieRolls: Seq[(RollCount, Sides)]): F[Unit] = {
     // If the text gives us multiple of the same die sides, let's just group those all together.
@@ -97,31 +128,5 @@ class GroupMeService[F[_]: Concurrent](
       groupmeClient.sendTextGroupMeMessage(message)
 
     } >> Concurrent[F].unit
-  }
-
-  // Regex to capture [number_of_rolls]d[number_of_sides]
-  val diceRollRegex = raw"(\d+)d(\d+)\s?\+?".r
-
-  def routes: HttpRoutes[F] = {
-    HttpRoutes.of[F] { case req @ POST -> Root =>
-      req.decode[GroupMeRequestBody] { body =>
-        // if started with a `/` let's listen in. If not we don't care
-        if (body.text.startsWith("/")) {
-          body.text match {
-            case s"/help" =>
-              handleHelp
-            case s"/roll ${rest}" if diceRollRegex.findFirstIn(rest).nonEmpty =>
-              val dieRolls =
-                diceRollRegex.findAllIn(rest).matchData.map { m => (m.subgroups(0).toInt, m.subgroups(1).toInt) }.toSeq
-              handleDieRoll(dieRolls)
-            case s"/idea ${idea}" =>
-              handleIdea(idea, body.name)
-            case _ =>
-              groupmeClient.sendTextGroupMeMessage("I'm sorry.I'm not sure what you wanted me to do :(")
-          }
-        }
-        Ok()
-      }
-    }
   }
 }
