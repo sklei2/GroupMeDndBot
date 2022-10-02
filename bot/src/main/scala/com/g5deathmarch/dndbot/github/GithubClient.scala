@@ -35,7 +35,7 @@ class GithubClientImpl[F[_]: Concurrent](
       .withEntity[GithubIssue](
         GithubIssue(
           issueTitle,
-          s"Recommended by ${user}",
+          s"Recommended by $user",
           None
         )
       )

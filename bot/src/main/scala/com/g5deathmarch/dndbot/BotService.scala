@@ -13,6 +13,7 @@ import org.http4s.{EntityDecoder, HttpRoutes}
 
 import scala.io.Source
 import scala.util.Random
+import scala.util.matching.Regex
 
 case class GroupMeRequestBody(
   group_id: String,
@@ -43,7 +44,7 @@ class BotService[F[_]: Concurrent](
   type Sides = Int
   type RollCount = Int
   // Regex to capture [number_of_rolls]d[number_of_sides]
-  val diceRollRegex = raw"(\d+)d(\d+)\s?\+?".r
+  val diceRollRegex: Regex = raw"(\d+)d(\d+)\s?\+?".r
 
   def routes: HttpRoutes[F] = {
     HttpRoutes.of[F] { case req @ POST -> Root =>
@@ -58,7 +59,7 @@ class BotService[F[_]: Concurrent](
             case s"/roll ${rest}" if diceRollRegex.findFirstIn(rest).nonEmpty =>
               logger.debug(s"Handling '/roll'. args=$rest")
               val dieRolls =
-                diceRollRegex.findAllIn(rest).matchData.map { m => (m.subgroups(0).toInt, m.subgroups(1).toInt) }.toSeq
+                diceRollRegex.findAllIn(rest).matchData.map { m => (m.subgroups.head.toInt, m.subgroups(1).toInt) }.toSeq
               handleDieRoll(dieRolls)
             case s"/idea ${title}" =>
               logger.debug(s"Handling '/idea'. title=$title user=${body.name}")
@@ -86,29 +87,29 @@ class BotService[F[_]: Concurrent](
     // If the text gives us multiple of the same die sides, let's just group those all together.
     val groupedDieRolls: Seq[(RollCount, Sides)] = dieRolls
       .groupBy(_._2)
-      .map { case (sides, allRollsForSide) => (allRollsForSide.map(_._1).fold(0)(_ + _), sides) }
+      .map { case (sides, allRollsForSide) => (allRollsForSide.map(_._1).sum, sides) }
       .toSeq
 
     val results: Seq[Seq[Int]] = groupedDieRolls
       .map { case (rollCount, sides) =>
-        (0 until rollCount).map { _ => Random.nextInt(sides) + 1 }.toSeq
+        (0 until rollCount).map { _ => Random.nextInt(sides) + 1 }
       }
 
     val message: String = {
       val header =
-        groupedDieRolls.map { case (rollCount, sides) => s"${rollCount}d${sides}" }.mkString("Result of ", " + ", "")
+        groupedDieRolls.map { case (rollCount, sides) => s"${rollCount}d$sides" }.mkString("Result of ", " + ", "")
       val body = {
-        val total = results.flatten.fold(0)(_ + _)
+        val total = results.flatten.sum
         // if we're only rolling a single die, just show the result of that one die without anything else.
         if (results.flatten.size == 1)
-          s"${total}"
+          s"$total"
         else {
           val rolls =
             results
               .map { result => result.mkString("(", " + ", ")") }
               .mkString(" + ")
 
-          s"${rolls} = ${total}"
+          s"$rolls = $total"
         }
       }
 
@@ -122,7 +123,7 @@ class BotService[F[_]: Concurrent](
     githubClient.createIssue(idea, user).flatMap { createdIssue =>
       val message = createdIssue.url match {
         case Some(url) =>
-          s"I've let my creators know about your idea! Check it out here: ${url}"
+          s"I've let my creators know about your idea! Check it out here: $url"
         case None =>
           "I've tried to let them know about your idea, but failed :("
       }
