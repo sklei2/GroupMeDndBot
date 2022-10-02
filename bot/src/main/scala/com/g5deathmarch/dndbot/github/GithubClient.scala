@@ -1,12 +1,11 @@
 package com.g5deathmarch.dndbot.github
 
 import cats.effect.Concurrent
-import cats.implicits._
+import io.circe.generic.auto._
 import org.http4s._
 import org.http4s.circe.CirceEntityCodec._
 import org.http4s.client.Client
 import org.http4s.client.dsl.Http4sClientDsl
-import io.circe.generic.auto._
 import org.http4s.headers.Authorization
 
 case class GithubIssue(
