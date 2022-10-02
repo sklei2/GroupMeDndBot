@@ -11,7 +11,7 @@ import org.http4s.headers.Authorization
 case class GithubIssue(
   title: String,
   body: String,
-  url: Option[String]
+  html_url: Option[String]
 )
 
 trait GithubClient[F[_]] {
