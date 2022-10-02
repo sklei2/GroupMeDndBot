@@ -1,14 +1,15 @@
-package com.g5deathmarch.dndbot.groupme
+package com.g5deathmarch.dndbot
 
 import cats.effect.kernel.Concurrent
 import cats.implicits._
 import com.g5deathmarch.dndbot.github.GithubClient
+import com.g5deathmarch.dndbot.groupme.{GroupMeClient, GroupMeConfig}
 import com.typesafe.scalalogging.StrictLogging
 import io.circe.Decoder
 import io.circe.generic.semiauto.deriveDecoder
-import org.http4s.{EntityDecoder, HttpRoutes}
 import org.http4s.circe.jsonOf
 import org.http4s.dsl.Http4sDsl
+import org.http4s.{EntityDecoder, HttpRoutes}
 
 import scala.io.Source
 import scala.util.Random
@@ -30,7 +31,7 @@ object GroupMeRequestBody {
 
 }
 
-class GroupMeService[F[_]: Concurrent](
+class BotService[F[_]: Concurrent](
   config: GroupMeConfig,
   groupmeClient: GroupMeClient[F],
   githubClient: GithubClient[F]

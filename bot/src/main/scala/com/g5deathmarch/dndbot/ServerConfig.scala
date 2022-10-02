@@ -5,7 +5,8 @@ import pureconfig.generic.auto._
 
 case class ServerConfig(
   host: String,
-  port: Int
+  port: Int,
+  useLocal: Boolean
 )
 
 object ServerConfig {

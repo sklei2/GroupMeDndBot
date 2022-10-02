@@ -3,7 +3,6 @@ package com.g5deathmarch.dndbot
 import com.g5deathmarch.dndbot.groupme.{
   GroupMeConfig,
   GroupMeClientImpl,
-  GroupMeService,
   LocalGroupMeClient,
   GroupMeClient
 }
@@ -32,8 +31,7 @@ object Server extends StrictLogging {
       groupMeConfig: GroupMeConfig = GroupMeConfig.load
       githubConfig: GithubConfig = GithubConfig.load
       groupMeClient = {
-        if (groupMeConfig.useLocal) {
-          logger.debug(s"$groupMeConfig")
+        if (serverConfig.useLocal) {
           new LocalGroupMeClient[F]
         } else
           new GroupMeClientImpl[F](groupMeConfig, client)
@@ -41,8 +39,10 @@ object Server extends StrictLogging {
       githubClient = {
         new GithubClientImpl[F](githubConfig, client)
       }
-      groupMeService = new GroupMeService[F](groupMeConfig, groupMeClient, githubClient)
-      httpApp = Logger.httpApp(true, true)(groupMeService.routes.orNotFound)
+      service = new BotService[F](groupMeConfig, groupMeClient, githubClient)
+      logHeaders = true
+      logBody = true
+      httpApp = Logger.httpApp(logHeaders, logBody)(service.routes.orNotFound)
 
       exitCode <- Stream.resource(
         EmberServerBuilder
