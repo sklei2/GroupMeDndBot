@@ -2,6 +2,7 @@ package com.g5deathmarch.dndbot
 
 import cats.effect.kernel.Concurrent
 import cats.implicits._
+import com.g5deathmarch.dndbot.fantasynamegenerator.FantasyNameGeneratorScraper
 import com.g5deathmarch.dndbot.github.GithubClient
 import com.g5deathmarch.dndbot.groupme.{GroupMeClient, GroupMeConfig}
 import com.typesafe.scalalogging.StrictLogging
@@ -36,7 +37,8 @@ object GroupMeRequestBody {
 class BotService[F[_]: Concurrent](
   config: GroupMeConfig,
   groupmeClient: GroupMeClient[F],
-  githubClient: GithubClient[F]
+  githubClient: GithubClient[F],
+  fantasyNameScraper: FantasyNameGeneratorScraper
 ) extends StrictLogging {
 
   val dsl = new Http4sDsl[F] {}
@@ -65,6 +67,9 @@ class BotService[F[_]: Concurrent](
             case s"/idea ${title}" =>
               logger.debug(s"Handling '/idea'. title=$title user=${body.name}")
               handleIdea(title, body.name)
+            case s"/name ${race}" =>
+              logger.debug(s"Handling '/name' with race=$race")
+              handleName(race)
             case _ =>
               logger.error(s"Unable to handle command: ${body.text.toLowerCase}")
               groupmeClient.sendTextGroupMeMessage("I'm sorry. I'm not sure what you wanted me to do :(")
@@ -125,5 +130,11 @@ class BotService[F[_]: Concurrent](
       val message = s"I've let my creators know about your idea! Check it out here: ${createdIssue.html_url}"
       groupmeClient.sendTextGroupMeMessage(message)
     } >> Concurrent[F].unit
+  }
+
+  private def handleName(race: String): F[Unit] = {
+    val names = fantasyNameScraper.getNames(race)
+    val message = names.mkString("\n")
+    groupmeClient.sendTextGroupMeMessage(message) >> Concurrent[F].unit
   }
 }
