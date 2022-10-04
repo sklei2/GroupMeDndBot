@@ -6,6 +6,7 @@ object Dependencies {
   val pureConfig = "com.github.pureconfig" %% "pureconfig" % "0.17.1"
   val logback = "ch.qos.logback" % "logback-classic" % "1.2.11"
   val scalaLogging = "com.typesafe.scala-logging" %% "scala-logging" % "3.9.4"
+  val scalaScraper = "net.ruippeixotog" %% "scala-scraper" % "3.0.0"
 
   object http4s {
     private val version = "0.23.16"
