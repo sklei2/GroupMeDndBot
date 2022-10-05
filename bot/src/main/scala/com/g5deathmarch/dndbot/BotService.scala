@@ -2,7 +2,7 @@ package com.g5deathmarch.dndbot
 
 import cats.effect.kernel.Concurrent
 import cats.implicits._
-import com.g5deathmarch.dndbot.fantasynamegenerator.FantasyNameGeneratorScraper
+import com.g5deathmarch.dndbot.fantasynamegenerator.{FantasyNameGeneratorScraper, Race}
 import com.g5deathmarch.dndbot.github.GithubClient
 import com.g5deathmarch.dndbot.groupme.{GroupMeClient, GroupMeConfig}
 import com.typesafe.scalalogging.StrictLogging
@@ -133,8 +133,14 @@ class BotService[F[_]: Concurrent](
   }
 
   private def handleName(race: String): F[Unit] = {
-    val names = fantasyNameScraper.getNames(race)
-    val message = names.mkString("\n")
+    val message = Race.valueOf(race) match {
+      case Some(r) =>
+        val names = fantasyNameScraper.getNames(r)
+        names.mkString("\n")
+      case None =>
+        s"I'm sorry I don't support '$race' as a fantasy race to generate names from. Please use '/help names' to get info as to what I know."
+    }
+
     groupmeClient.sendTextGroupMeMessage(message) >> Concurrent[F].unit
   }
 }
