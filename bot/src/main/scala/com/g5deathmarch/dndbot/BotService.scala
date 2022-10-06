@@ -57,12 +57,13 @@ class BotService[F[_]: Concurrent](
           logger.debug(s"Attempting to handle command=${body.text}")
           val action = body.text match {
             case s"/help /name" =>
-                groupmeClient.sendTextGroupMeMessage(
-                  s"""
-                    |This name command is to help generate names for specific fantasy races and genders. I support the following races:
-                    |${Race.values.map(_.toString).mkString("\n")}
-                    |""".stripMargin
-                )
+              val message =
+                s"""
+                   |This name command is to help generate names for specific fantasy races and genders. I support the following races:
+                   |${Race.values.map(_.toString).mkString("\n")}
+
+                   |""".stripMargin
+              groupmeClient.sendTextGroupMeMessage(message)
             case s"/help" =>
               logger.debug("Handling '/help' command")
               handleHelp
