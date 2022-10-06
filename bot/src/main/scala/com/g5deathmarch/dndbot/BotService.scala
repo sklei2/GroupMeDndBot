@@ -10,7 +10,7 @@ import io.circe.Decoder
 import io.circe.generic.semiauto.deriveDecoder
 import org.http4s.circe.jsonOf
 import org.http4s.dsl.Http4sDsl
-import org.http4s.{EntityDecoder, HttpRoutes}
+import org.http4s.{EntityDecoder, HttpRoutes, Status}
 
 import scala.io.Source
 import scala.util.Random
@@ -43,6 +43,7 @@ class BotService[F[_]: Concurrent](
 
   val dsl = new Http4sDsl[F] {}
   import dsl._
+
   // Type alias to make it easier to understand.
   type Sides = Int
   type RollCount = Int
@@ -74,7 +75,11 @@ class BotService[F[_]: Concurrent](
             case s"/roll ${rest}" if diceRollRegex.findFirstIn(rest).nonEmpty =>
               logger.debug(s"Handling '/roll'. args=$rest")
               val dieRolls =
-                diceRollRegex.findAllIn(rest).matchData.map { m => (m.subgroups.head.toInt, m.subgroups(1).toInt) }.toSeq
+                diceRollRegex
+                  .findAllIn(rest)
+                  .matchData
+                  .map { m => (m.subgroups.head.toInt, m.subgroups(1).toInt) }
+                  .toSeq
               handleDieRoll(dieRolls)
             case s"/idea ${title}" =>
               logger.debug(s"Handling '/idea'. title=$title user=${body.name}")
@@ -100,8 +105,15 @@ class BotService[F[_]: Concurrent](
   }
 
   private def handleHelp: F[Unit] = {
-    val helpText: Iterator[String] = Source.fromResource("help.txt").getLines()
-    groupmeClient.sendTextGroupMeMessage(helpText.mkString("\n")) >> Concurrent[F].unit
+    val helpText: String = Source.fromResource("help.txt").getLines().mkString("\n")
+    val messages: Seq[String] = helpText.split("\n\n")
+
+    def recursive(m: Seq[String]): F[Status] = m match {
+      case head :: Nil => groupmeClient.sendTextGroupMeMessage(head)
+      case head :: tail => groupmeClient.sendTextGroupMeMessage(head) >> recursive(tail)
+    }
+
+    recursive(messages) >> Concurrent[F].unit
   }
 
   private def handleDieRoll(dieRolls: Seq[(RollCount, Sides)]): F[Unit] = {

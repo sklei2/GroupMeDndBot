@@ -3,11 +3,8 @@ package com.g5deathmarch.dndbot.fantasynamegenerator
 import com.typesafe.scalalogging.StrictLogging
 import net.ruippeixotog.scalascraper.browser.HtmlUnitBrowser
 import net.ruippeixotog.scalascraper.browser.HtmlUnitBrowser.{HtmlUnitDocument, HtmlUnitElement}
-import net.ruippeixotog.scalascraper.dsl.DSL._
 import net.ruippeixotog.scalascraper.dsl.DSL.Extract._
-import net.ruippeixotog.scalascraper.dsl.DSL.Parse._
-import net.ruippeixotog.scalascraper.model._
-import net.ruippeixotog.scalascraper.scraper.{HtmlValidator, PolyHtmlExtractor}
+import net.ruippeixotog.scalascraper.dsl.DSL._
 
 import java.util.logging.Level
 
@@ -55,8 +52,6 @@ class FantasyNameGeneratorScraper extends StrictLogging {
 }
 
 object FantasyNameGeneratorScraper {
-  def url(race: Race.RaceType): String = s"https://fantasynamegenerators.com/dnd-${race.toString.toLowerCase}-names.php"
-
   val gendered: Map[Race.RaceType, Boolean] = Map(
     Race.aarakocra -> false,
     Race.aasimar -> true,
@@ -81,8 +76,10 @@ object FantasyNameGeneratorScraper {
     Race.lizardfolk -> false,
     Race.tortle -> false,
     Race.tiefling -> true,
-    Race.orc -> true,
+    Race.orc -> true
   )
+
+  def url(race: Race.RaceType): String = s"https://fantasynamegenerators.com/dnd-${race.toString.toLowerCase}-names.php"
 }
 
 object Gender extends Enumeration {
