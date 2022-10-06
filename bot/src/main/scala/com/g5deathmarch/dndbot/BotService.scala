@@ -10,7 +10,7 @@ import io.circe.Decoder
 import io.circe.generic.semiauto.deriveDecoder
 import org.http4s.circe.jsonOf
 import org.http4s.dsl.Http4sDsl
-import org.http4s.{EntityDecoder, HttpRoutes}
+import org.http4s.{EntityDecoder, HttpRoutes, Status}
 
 import scala.io.Source
 import scala.util.Random
@@ -60,8 +60,7 @@ class BotService[F[_]: Concurrent](
               command match {
                 case "/name" =>
                   groupmeClient.sendTextGroupMeMessage(
-                    s"""
-                      |This name command is to help generate names for specific fantasy races and genders. I support the following races:
+                    s"""This name command is to help generate names for specific fantasy races and genders. I support the following races:
                       |${Race.values.map(_.toString).mkString("\n")}
                       |""".stripMargin
                   )
@@ -100,8 +99,22 @@ class BotService[F[_]: Concurrent](
   }
 
   private def handleHelp: F[Unit] = {
-    val helpText: Iterator[String] = Source.fromResource("help.txt").getLines()
-    groupmeClient.sendTextGroupMeMessage(helpText.mkString("\n")) >> Concurrent[F].unit
+    val helpText: String = Source.fromResource("help.txt").getLines().mkString("\n")
+    val messages: List[String] = helpText.split("\n\n").toList
+
+    def recursive(m: List[String]): F[Status] = m match {
+      // only one message to send, we should only get here if we ever have 1 message
+      case head :: Nil =>
+        groupmeClient.sendTextGroupMeMessage(head)
+      // if we have 2 messages left, just create the IO all at once.
+      case head :: tail :: Nil =>
+        groupmeClient.sendTextGroupMeMessage(head) >> groupmeClient.sendTextGroupMeMessage(tail)
+      // if we have more than 2 messages (String, List[String]) then send the head and recurse.
+      case head :: tail =>
+        groupmeClient.sendTextGroupMeMessage(head) >> recursive(tail)
+    }
+
+    recursive(messages) >> Concurrent[F].unit
   }
 
   private def handleDieRoll(dieRolls: Seq[(RollCount, Sides)]): F[Unit] = {
