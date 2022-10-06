@@ -43,7 +43,6 @@ class BotService[F[_]: Concurrent](
 
   val dsl = new Http4sDsl[F] {}
   import dsl._
-
   // Type alias to make it easier to understand.
   type Sides = Int
   type RollCount = Int
@@ -75,11 +74,7 @@ class BotService[F[_]: Concurrent](
             case s"/roll ${rest}" if diceRollRegex.findFirstIn(rest).nonEmpty =>
               logger.debug(s"Handling '/roll'. args=$rest")
               val dieRolls =
-                diceRollRegex
-                  .findAllIn(rest)
-                  .matchData
-                  .map { m => (m.subgroups.head.toInt, m.subgroups(1).toInt) }
-                  .toSeq
+                diceRollRegex.findAllIn(rest).matchData.map { m => (m.subgroups.head.toInt, m.subgroups(1).toInt) }.toSeq
               handleDieRoll(dieRolls)
             case s"/idea ${title}" =>
               logger.debug(s"Handling '/idea'. title=$title user=${body.name}")
@@ -106,11 +101,13 @@ class BotService[F[_]: Concurrent](
 
   private def handleHelp: F[Unit] = {
     val helpText: String = Source.fromResource("help.txt").getLines().mkString("\n")
-    val messages: Seq[String] = helpText.split("\n\n")
+    val messages: List[String] = helpText.split("\n\n").toList
 
-    def recursive(m: Seq[String]): F[Status] = m match {
-      case head :: Nil => groupmeClient.sendTextGroupMeMessage(head)
-      case head :: tail => groupmeClient.sendTextGroupMeMessage(head) >> recursive(tail)
+    def recursive(m: List[String]): F[Status] = m match {
+      case head :: tail :: Nil =>
+        groupmeClient.sendTextGroupMeMessage(head) >> groupmeClient.sendTextGroupMeMessage(tail)
+      case head :: tail =>
+        groupmeClient.sendTextGroupMeMessage(head) >> recursive(tail)
     }
 
     recursive(messages) >> Concurrent[F].unit

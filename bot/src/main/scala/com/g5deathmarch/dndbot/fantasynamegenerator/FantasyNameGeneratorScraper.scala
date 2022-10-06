@@ -8,8 +8,6 @@ import net.ruippeixotog.scalascraper.dsl.DSL._
 
 import java.util.logging.Level
 
-case class FantasySearchOptions(race: Race.RaceType, gendered: Boolean)
-
 class FantasyNameGeneratorScraper extends StrictLogging {
 
   private val browser: HtmlUnitBrowser = {
