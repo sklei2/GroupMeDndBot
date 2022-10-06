@@ -22,11 +22,10 @@ trait GroupMeClient[F[_]] {
 class GroupMeClientImpl[F[_]: Concurrent](
   config: GroupMeConfig,
   client: Client[F]
-) extends GroupMeClient[F] with StrictLogging {
+) extends GroupMeClient[F] {
   val dsl = new Http4sClientDsl[F] {}
 
   override def sendTextGroupMeMessage(message: String): F[Status] = {
-    logger.debug("Attempting to send message to GroupMe Chat")
     val uri = Uri.unsafeFromString(config.postUrl)
     val req = Request[F](Method.POST, uri)
       .withEntity(GroupMeTextMessage(config.botId, message))
