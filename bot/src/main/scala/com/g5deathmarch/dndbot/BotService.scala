@@ -60,8 +60,7 @@ class BotService[F[_]: Concurrent](
               command match {
                 case "/name" =>
                   groupmeClient.sendTextGroupMeMessage(
-                    s"""
-                      |This name command is to help generate names for specific fantasy races and genders. I support the following races:
+                    s"""This name command is to help generate names for specific fantasy races and genders. I support the following races:
                       |${Race.values.map(_.toString).mkString("\n")}
                       |""".stripMargin
                   )
