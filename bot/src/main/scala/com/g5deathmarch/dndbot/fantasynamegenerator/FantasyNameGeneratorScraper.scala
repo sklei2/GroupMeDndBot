@@ -2,12 +2,16 @@ package com.g5deathmarch.dndbot.fantasynamegenerator
 
 import com.typesafe.scalalogging.StrictLogging
 import net.ruippeixotog.scalascraper.browser.HtmlUnitBrowser
-import net.ruippeixotog.scalascraper.dsl.DSL.Extract._
+import net.ruippeixotog.scalascraper.browser.HtmlUnitBrowser.{HtmlUnitDocument, HtmlUnitElement}
 import net.ruippeixotog.scalascraper.dsl.DSL._
+import net.ruippeixotog.scalascraper.dsl.DSL.Extract._
+import net.ruippeixotog.scalascraper.dsl.DSL.Parse._
+import net.ruippeixotog.scalascraper.model._
+import net.ruippeixotog.scalascraper.scraper.{HtmlValidator, PolyHtmlExtractor}
 
 import java.util.logging.Level
 
-case class FantasySearchOptions(race: Race.RaceType, gendered: Boolean, additionalButtons: Set[String]=Set.empty)
+case class FantasySearchOptions(race: Race.RaceType, gendered: Boolean)
 
 class FantasyNameGeneratorScraper extends StrictLogging {
 
@@ -16,13 +20,34 @@ class FantasyNameGeneratorScraper extends StrictLogging {
     java.util.logging.Logger.getLogger("com.gargoylesoftware.htmlunit").setLevel(Level.OFF)
     HtmlUnitBrowser.typed()
   }
-  private val buttonsSelector = "#nameGen input[type='button']"
+
   private val namesSelector = "#result"
 
-  def getNames(race: Race.RaceType): Set[String] = {
-    val document = browser.get(FantasyNameGeneratorScraper.url(race))
+  def getNames(race: Race.RaceType, gender: Option[Gender.GenderType]): Set[String] = {
+    val document: HtmlUnitDocument = browser.get(FantasyNameGeneratorScraper.url(race))
 
-    val names = document >> element(namesSelector)
+    val names = (gender, FantasyNameGeneratorScraper.gendered.getOrElse(race, false)) match {
+      case (None, _) | (_, false) =>
+        // Not gendered, so just grab whatever the page has
+        document >> element(namesSelector)
+      case (Some(gender), true) =>
+        val buttons: List[HtmlUnitElement] = document >> pElementList("#nameGen input") match {
+          case b: List[HtmlUnitElement] => b
+          case _ => List.empty
+        }
+        buttons.find { b =>
+          val value = b.attr("value").toLowerCase
+          // Human buttons specifically have `(Old) Male Names` and `(Old) Female Names` for some reason.
+          // So let's make sure that A) we select the button has the gender and it isn't one of the outlier ones.
+          value.contains(gender.toString.toLowerCase) && !value.contains("Old")
+        } match {
+          case Some(el) =>
+            el.underlying.click[com.gargoylesoftware.htmlunit.Page]()
+          case None =>
+            throw new Exception("I CAN'T FIND THIS GENDER OPTION!")
+        }
+        document >> element(namesSelector)
+    }
 
     names.innerHtml.split("<br></br>").take(5).toSet
 
@@ -32,32 +57,39 @@ class FantasyNameGeneratorScraper extends StrictLogging {
 object FantasyNameGeneratorScraper {
   def url(race: Race.RaceType): String = s"https://fantasynamegenerators.com/dnd-${race.toString.toLowerCase}-names.php"
 
-  val options: Set[FantasySearchOptions] = Set(
-    FantasySearchOptions(Race.aarakocra, gendered = false),
-    FantasySearchOptions(Race.aasimar, gendered = true),
-    FantasySearchOptions(Race.bugbear, gendered = false),
-    FantasySearchOptions(Race.dragonborn, gendered = true, additionalButtons = Set("Childhood")),
-    FantasySearchOptions(Race.drow, gendered = true),
-    FantasySearchOptions(Race.dwarf, gendered = true),
-    FantasySearchOptions(Race.elf, gendered = true, additionalButtons = Set("Child")),
-    FantasySearchOptions(Race.eladrin, gendered = true),
-    FantasySearchOptions(Race.firbolg, gendered = true),
-    FantasySearchOptions(Race.genasi, gendered = false),
-    FantasySearchOptions(Race.gnome, gendered = true),
-    FantasySearchOptions(Race.goblin, gendered = true),
-    FantasySearchOptions(Race.goliath, gendered = true),
-    FantasySearchOptions(Race.halfElf, gendered = true),
-    FantasySearchOptions(Race.halfOrc, gendered = true),
-    FantasySearchOptions(Race.halfling, gendered = true),
-    FantasySearchOptions(Race.hobgoblin, gendered = false),
-    FantasySearchOptions(Race.human, gendered = true, additionalButtons = Set("(Old) Male", "(Old) Female")),
-    FantasySearchOptions(Race.kenku, gendered = false),
-    FantasySearchOptions(Race.kobold, gendered = false),
-    FantasySearchOptions(Race.lizardfolk, gendered = false, additionalButtons = Set("Meanings")),
-    FantasySearchOptions(Race.tortle, gendered = false),
-    FantasySearchOptions(Race.tiefling, gendered = true, additionalButtons = Set("Virtue")),
-    FantasySearchOptions(Race.orc, gendered = true),
+  val gendered: Map[Race.RaceType, Boolean] = Map(
+    Race.aarakocra -> false,
+    Race.aasimar -> true,
+    Race.bugbear -> false,
+    Race.dragonborn -> true,
+    Race.drow -> true,
+    Race.dwarf -> true,
+    Race.elf -> true,
+    Race.eladrin -> true,
+    Race.firbolg -> true,
+    Race.genasi -> false,
+    Race.gnome -> true,
+    Race.goblin -> true,
+    Race.goliath -> true,
+    Race.halfElf -> true,
+    Race.halfOrc -> true,
+    Race.halfling -> true,
+    Race.hobgoblin -> false,
+    Race.human -> true,
+    Race.kenku -> false,
+    Race.kobold -> false,
+    Race.lizardfolk -> false,
+    Race.tortle -> false,
+    Race.tiefling -> true,
+    Race.orc -> true,
   )
+}
+
+object Gender extends Enumeration {
+  type GenderType = Value
+  val female: GenderType = Value("female")
+  val male: GenderType = Value("male")
+  def valueOf(name: String): Option[Value] = this.values.find(_.toString.toLowerCase == name.toLowerCase)
 }
 
 object Race extends Enumeration {

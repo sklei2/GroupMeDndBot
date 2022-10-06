@@ -2,7 +2,7 @@ package com.g5deathmarch.dndbot
 
 import cats.effect.kernel.Concurrent
 import cats.implicits._
-import com.g5deathmarch.dndbot.fantasynamegenerator.{FantasyNameGeneratorScraper, Race}
+import com.g5deathmarch.dndbot.fantasynamegenerator.{FantasyNameGeneratorScraper, Gender, Race}
 import com.g5deathmarch.dndbot.github.GithubClient
 import com.g5deathmarch.dndbot.groupme.{GroupMeClient, GroupMeConfig}
 import com.typesafe.scalalogging.StrictLogging
@@ -67,9 +67,12 @@ class BotService[F[_]: Concurrent](
             case s"/idea ${title}" =>
               logger.debug(s"Handling '/idea'. title=$title user=${body.name}")
               handleIdea(title, body.name)
+            case s"/name ${race} ${gender}" =>
+              logger.debug(s"Handling '/name' with race=$race gender=$gender")
+              handleName(race, Some(gender))
             case s"/name ${race}" =>
               logger.debug(s"Handling '/name' with race=$race")
-              handleName(race)
+              handleName(race, None)
             case _ =>
               logger.error(s"Unable to handle command: ${body.text.toLowerCase}")
               groupmeClient.sendTextGroupMeMessage("I'm sorry. I'm not sure what you wanted me to do :(")
@@ -132,13 +135,19 @@ class BotService[F[_]: Concurrent](
     } >> Concurrent[F].unit
   }
 
-  private def handleName(race: String): F[Unit] = {
-    val message = Race.valueOf(race) match {
-      case Some(r) =>
-        val names = fantasyNameScraper.getNames(r)
-        names.mkString("\n")
-      case None =>
+  private def handleName(race: String, gender: Option[String]): F[Unit] = {
+    val message = (Race.valueOf(race), gender) match {
+      case (None, _) =>
         s"I'm sorry I don't support '$race' as a fantasy race to generate names from. Please use '/help names' to get info as to what I know."
+      case (Some(r), Some(g)) if Gender.valueOf(g).isDefined =>
+        val genderEnum = Gender.valueOf(g)
+        val names = fantasyNameScraper.getNames(r, genderEnum)
+        names.mkString("\n")
+      case (Some(r), None) =>
+        val names = fantasyNameScraper.getNames(r, None)
+        names.mkString("\n")
+      case (Some(_), Some(g)) =>
+        s"I'm sorry I don't support $g as a gender option."
     }
 
     groupmeClient.sendTextGroupMeMessage(message) >> Concurrent[F].unit
