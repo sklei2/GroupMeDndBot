@@ -2,6 +2,7 @@ package com.g5deathmarch.dndbot
 
 import cats.effect._
 import com.comcast.ip4s._
+import com.g5deathmarch.dndbot.fantasynamegenerator.FantasyNameGeneratorScraper
 import com.g5deathmarch.dndbot.github.{GithubClientImpl, GithubConfig, LocalGithubClient}
 import com.g5deathmarch.dndbot.groupme.{GroupMeClientImpl, GroupMeConfig, LocalGroupMeClient}
 import com.typesafe.scalalogging.StrictLogging
@@ -32,7 +33,8 @@ object Server extends StrictLogging {
           new GithubClientImpl[F](githubConfig, client)
         }
       }
-      service = new BotService[F](groupMeConfig, groupMeClient, githubClient)
+      fantasyNameGeneratorWebScraper = new FantasyNameGeneratorScraper
+      service = new BotService[F](groupMeConfig, groupMeClient, githubClient, fantasyNameGeneratorWebScraper)
       logHeaders = true
       logBody = true
       httpApp = Logger.httpApp(logHeaders, logBody)(service.routes.orNotFound)

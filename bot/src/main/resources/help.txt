@@ -11,4 +11,11 @@
 /idea [Issue Title]
   You ever want me to do something that I can't? Or want me to do something better?
   Well let my creator know by telling them about your needs!
-  Ex '/idea Randomly generate characters names based on race.'
+  EX: '/idea Randomly generate characters names based on race.'
+
+/name [race] [?gender]
+  I can go out and get you 5 random names for a specific fantasy race of a specific gender (if you tell me one specifically and the race has gendered names)
+  I only support certain races, so if you want a complete list of this please use `/help /names`!
+  EX: '/name tiefling male'
+  EX: '/name Aarakocka'
+  EX: '/name HuMAn female'
