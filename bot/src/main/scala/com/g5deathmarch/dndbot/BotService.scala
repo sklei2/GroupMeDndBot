@@ -104,8 +104,13 @@ class BotService[F[_]: Concurrent](
     val messages: List[String] = helpText.split("\n\n").toList
 
     def recursive(m: List[String]): F[Status] = m match {
+      // only one message to send, we should only get here if we ever have 1 message
+      case head :: Nil =>
+        groupmeClient.sendTextGroupMeMessage(head)
+      // if we have 2 messages left, just create the IO all at once.
       case head :: tail :: Nil =>
         groupmeClient.sendTextGroupMeMessage(head) >> groupmeClient.sendTextGroupMeMessage(tail)
+      // if we have more than 2 messages (String, List[String]) then send the head and recurse.
       case head :: tail =>
         groupmeClient.sendTextGroupMeMessage(head) >> recursive(tail)
     }
