@@ -8,10 +8,12 @@ import com.g5deathmarch.dndbot.groupme.{GroupMeClient, GroupMeConfig}
 import com.typesafe.scalalogging.StrictLogging
 import io.circe.Decoder
 import io.circe.generic.semiauto.deriveDecoder
+import org.eclipse.jetty.util.resource.Resource
 import org.http4s.circe.jsonOf
 import org.http4s.dsl.Http4sDsl
 import org.http4s.{EntityDecoder, HttpRoutes, Status}
 
+import java.io.FileNotFoundException
 import scala.io.Source
 import scala.util.Random
 import scala.util.matching.Regex
@@ -55,17 +57,24 @@ class BotService[F[_]: Concurrent](
         // if started with a `/` let's listen in. If not we don't care
         if (body.sender_type != "bot" && body.text.toLowerCase.startsWith("/")) {
           logger.debug(s"Attempting to handle command=${body.text}")
-          val action = body.text match {
-            case s"/help ${command}" =>
-              command match {
-                case "/name" =>
-                  groupmeClient.sendTextGroupMeMessage(
-                    s"""This name command is to help generate names for specific fantasy races and genders. I support the following races:
-                      |${Race.values.map(_.toString).mkString("\n")}
-                      |""".stripMargin
-                  )
-                case _ =>
-                  groupmeClient.sendTextGroupMeMessage(s"Sorry I don't know how to help with the '$command' command'")
+          val action = body.text.toLowerCase.trim match {
+            case s"/help ${command}" if command.toLowerCase.replaceFirst("/", "") != "help" =>
+              // Make sure that the resource text files have the command name without the `/`
+              val commandName = command.toLowerCase.replaceFirst("/", "")
+              try {
+                val message: String = {
+                  val textFileContent = Source.fromResource(s"${commandName}.txt").getLines().mkString("\n")
+                  if (commandName == "name") {
+                    s"$textFileContent\n\nI support the following Races:\n${Race.values.map(_.toString).mkString("\n")}"
+                  } else {
+                    textFileContent
+                  }
+                }
+
+                groupmeClient.sendTextGroupMeMessage(message)
+              } catch {
+                case _: FileNotFoundException =>
+                  groupmeClient.sendTextGroupMeMessage(s"I don't know how to help with the '$command' command :(")
               }
             case s"/help" =>
               logger.debug("Handling '/help' command")
@@ -99,22 +108,8 @@ class BotService[F[_]: Concurrent](
   }
 
   private def handleHelp: F[Unit] = {
-    val helpText: String = Source.fromResource("help.txt").getLines().mkString("\n")
-    val messages: List[String] = helpText.split("\n\n").toList
-
-    def recursive(m: List[String]): F[Status] = m match {
-      // only one message to send, we should only get here if we ever have 1 message
-      case head :: Nil =>
-        groupmeClient.sendTextGroupMeMessage(head)
-      // if we have 2 messages left, just create the IO all at once.
-      case head :: tail :: Nil =>
-        groupmeClient.sendTextGroupMeMessage(head) >> groupmeClient.sendTextGroupMeMessage(tail)
-      // if we have more than 2 messages (String, List[String]) then send the head and recurse.
-      case head :: tail =>
-        groupmeClient.sendTextGroupMeMessage(head) >> recursive(tail)
-    }
-
-    recursive(messages) >> Concurrent[F].unit
+    val message: String = Source.fromResource("help.txt").getLines().mkString("\n")
+    groupmeClient.sendTextGroupMeMessage(message) >> Concurrent[F].unit
   }
 
   private def handleDieRoll(dieRolls: Seq[(RollCount, Sides)]): F[Unit] = {
