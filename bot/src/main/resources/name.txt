@@ -1,0 +1,5 @@
+/name [race] [?gender]
+  I can go out and get you 5 random names for a specific fantasy race of a specific gender (if you tell me one specifically and the race has gendered names)
+  EX: '/name tiefling male'
+  EX: '/name Aarakocka'
+  EX: '/name HuMAn female'

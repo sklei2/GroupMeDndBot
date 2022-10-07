@@ -1,21 +1,9 @@
-/help
-  All the commands I know and how to execute them! This is the command you just ran, why are you reading this?
+/help [?command]
+  All the commands I know! Optionally, you can also specify what command you want to know more about. Then I'll tell you about it.
 
-/roll [times]d[number_of_faces] [+ [times]d[number_of_faces]]
-  I can roll a die any number of times and give you the output of it. I can even handle multiple die types!
-  [times] => Number of times to roll the die.
-  [number_of_faces] => the max value on the die face.
-  EX: '/roll 1d20' means I will roll one 20 sided die and give you the value.
-  EX: '/roll 1d6 + 2d4' means I will roll one 6 side + two 4 sided dice, and add them together.
+Here are the following commands I know, and the arguments they take.
 
+/roll [times]d[number_of_faces] [? + [times]d[number_of_faces]]
 /idea [Issue Title]
-  You ever want me to do something that I can't? Or want me to do something better?
-  Well let my creator know by telling them about your needs!
-  EX: '/idea Randomly generate characters names based on race.'
-
 /name [race] [?gender]
-  I can go out and get you 5 random names for a specific fantasy race of a specific gender (if you tell me one specifically and the race has gendered names)
-  I only support certain races, so if you want a complete list of this please use `/help /names`!
-  EX: '/name tiefling male'
-  EX: '/name Aarakocka'
-  EX: '/name HuMAn female'
+
