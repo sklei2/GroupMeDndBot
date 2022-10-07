@@ -1,6 +1,5 @@
 /help [?command]
-  All the commands I know! Optionally, you can also specify what command you want to know more about. Then I'll tell you
-  about it.
+  All the commands I know! Optionally, you can also specify what command you want to know more about. Then I'll tell you about it.
 
 Here are the following commands I know, and the arguments they take.
 
