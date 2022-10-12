@@ -14,6 +14,7 @@ import org.http4s.dsl.Http4sDsl
 import org.http4s.{EntityDecoder, HttpRoutes, Status}
 
 import java.io.FileNotFoundException
+import scala.annotation.tailrec
 import scala.io.Source
 import scala.util.Random
 import scala.util.matching.Regex
@@ -49,7 +50,7 @@ class BotService[F[_]: Concurrent](
   type Sides = Int
   type RollCount = Int
   // Regex to capture [number_of_rolls]d[number_of_sides]
-  val diceRollRegex: Regex = raw"(\d+)d(\d+)\s?\+?".r
+  val diceRollRegex: Regex = raw"(\d+)d(\d+)".r
 
   def routes: HttpRoutes[F] = {
     HttpRoutes.of[F] { case req @ POST -> Root =>
@@ -79,11 +80,10 @@ class BotService[F[_]: Concurrent](
             case s"/help" =>
               logger.debug("Handling '/help' command")
               handleHelp
-            case s"/roll ${rest}" if diceRollRegex.findFirstIn(rest).nonEmpty =>
+            case s"/roll ${rest}" =>
               logger.debug(s"Handling '/roll'. args=$rest")
-              val dieRolls =
-                diceRollRegex.findAllIn(rest).matchData.map { m => (m.subgroups.head.toInt, m.subgroups(1).toInt) }.toSeq
-              handleDieRoll(dieRolls)
+              // parse the rest of the string into objects
+              handleDieMath(rest)
             case s"/idea ${title}" =>
               logger.debug(s"Handling '/idea'. title=$title user=${body.name}")
               handleIdea(title, body.name)
@@ -112,36 +112,53 @@ class BotService[F[_]: Concurrent](
     groupmeClient.sendTextGroupMeMessage(message) >> Concurrent[F].unit
   }
 
-  private def handleDieRoll(dieRolls: Seq[(RollCount, Sides)]): F[Unit] = {
-    // If the text gives us multiple of the same die sides, let's just group those all together.
-    val groupedDieRolls: Seq[(RollCount, Sides)] = dieRolls
-      .groupBy(_._2)
-      .map { case (sides, allRollsForSide) => (allRollsForSide.map(_._1).sum, sides) }
-      .toSeq
+  private def handleDieMath(arithmetic: String): F[Unit] = {
+    type Result = Int
+    type Message = String
 
-    val results: Seq[Seq[Int]] = groupedDieRolls
-      .map { case (rollCount, sides) =>
-        (0 until rollCount).map { _ => Random.nextInt(sides) + 1 }
+    def handleValue(v: String): (Result, Message) = {
+      diceRollRegex.findFirstMatchIn(v) match {
+        case Some(regexMatch) =>
+          val rollCount = regexMatch.subgroups.head.toInt
+          val sides = regexMatch.subgroups(1).toInt
+          val results = (0 until rollCount).map { _ => Random.nextInt(sides) + 1 }
+          (results.sum, results.mkString("(", " + ", ")"))
+        case None => (v.toInt, v)
       }
+    }
 
-    val message: String = {
-      val header =
-        groupedDieRolls.map { case (rollCount, sides) => s"${rollCount}d$sides" }.mkString("Result of ", " + ", "")
-      val body = {
-        val total = results.flatten.sum
-        // if we're only rolling a single die, just show the result of that one die without anything else.
-        if (results.flatten.size == 1)
-          s"$total"
-        else {
-          val rolls =
-            results
-              .map { result => result.mkString("(", " + ", ")") }
-              .mkString(" + ")
+    @tailrec
+    def recursiveMath(expressions: List[String], resultAccumulator: Int, messageAccumulator: String, firstRun: Boolean): (Result, Message) = {
+      expressions match {
+        case _ :: Nil =>
+          (resultAccumulator, messageAccumulator)
+        case l :: "+" :: r :: rest =>
+          val (lResult, lMessage) = handleValue(l)
+          val (rResult, rMessage) = handleValue(r)
 
-          s"$rolls = $total"
-        }
+          if (firstRun) {
+            recursiveMath(s"${lResult + rResult}" :: rest, lResult + rResult, s"$lMessage + $rMessage", false)
+          } else {
+            recursiveMath(s"${lResult + rResult}" :: rest, lResult + rResult, s"$messageAccumulator + $rMessage", false)
+          }
+
+        case l :: "-" :: r :: rest =>
+          val (lResult, lMessage) = handleValue(l)
+          val (rResult, rMessage) = handleValue(r)
+
+          if (firstRun) {
+            recursiveMath(s"${lResult - rResult}" :: rest, lResult - rResult, s"$lMessage - $rMessage", false)
+          } else {
+            recursiveMath(s"${lResult - rResult}" :: rest, lResult - rResult, s"$messageAccumulator - $rMessage", false)
+          }
       }
+    }
 
+    val message = {
+      val expressions: List[String] = arithmetic.toLowerCase.split("\\s").toList
+      val header = s"Result of $arithmetic"
+      val (result, mathMessage) = recursiveMath(expressions, 0, "", true)
+      val body = s"$mathMessage = $result"
       s"$header\n$body"
     }
 
