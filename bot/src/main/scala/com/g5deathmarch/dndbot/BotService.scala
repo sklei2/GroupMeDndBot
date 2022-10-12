@@ -14,6 +14,7 @@ import org.http4s.dsl.Http4sDsl
 import org.http4s.{EntityDecoder, HttpRoutes, Status}
 
 import java.io.FileNotFoundException
+import scala.annotation.tailrec
 import scala.io.Source
 import scala.util.Random
 import scala.util.matching.Regex
@@ -126,6 +127,7 @@ class BotService[F[_]: Concurrent](
       }
     }
 
+    @tailrec
     def recursiveMath(expressions: List[String], resultAccumulator: Int, messageAccumulator: String, firstRun: Boolean): (Result, Message) = {
       expressions match {
         case _ :: Nil =>
