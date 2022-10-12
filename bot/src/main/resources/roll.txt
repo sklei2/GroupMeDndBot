@@ -1,6 +1,7 @@
-/roll [times]d[number_of_faces] [+ [times]d[number_of_faces]]
+/roll [times]d[number_of_faces] [+/-] [times]d[number_of_faces]]
   I can roll a die any number of times and give you the output of it. I can even handle multiple die types!
   [times] => Number of times to roll the die.
   [number_of_faces] => the max value on the die face.
   EX: '/roll 1d20' means I will roll one 20 sided die and give you the value.
   EX: '/roll 1d6 + 2d4' means I will roll one 6 side + two 4 sided dice, and add them together.
+  EX: '/roll 1d4 + 2d6 - 3' means I will roll one 4 sided die and 2 six sided die, adding them together and then subtract 3 from the result.
